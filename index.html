@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEU GTA-6</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+
+
+    <link rel="stylesheet" href="styles.css">
+    <script src="script.js" defer></script>
+
+</head>
+
+<body>
+
+    <p class="jogador">ARTHUR</p>
+
+    <img class="personagem" src="img/Arthur.png" alt="Arthur">
+
+
+
+    <div class="textos">
+
+        <h1>Não é só <br>um jogo</h1>
+        <p class="abertura">Selecione o seu personagem</p>
+        <p class="apoio">SELECIONE O SEU AVATAR OU TIRE UMA SELFIE</p>
+        <section class="dicas-iniciais" aria-label="Dicas para jogar" tabindex="0">
+            <h2>Como jogar</h2>
+            <p>WASD ou as setas: mova o personagem.</p>
+            <p>Mouse: mude a direção para onde ele olha.</p>
+            <p>Escolha um nível, mova-se com WASD ou as setas e colete todos os pacotes antes do tempo acabar.</p>
+            <p class="direcoes-wasd" role="tooltip">
+                <strong>Direções do teclado</strong>
+                <span><kbd>W</kbd> para cima · <kbd>A</kbd> para esquerda</span>
+                <span><kbd>S</kbd> para baixo · <kbd>D</kbd> para direita</span>
+            </p>
+        </section>
+
+    </div>
+
+    <div class="menu">
+
+        <button class="opcao-personagem" type="button" data-imagem="img/Arthur.png" data-nome="ARTHUR"
+            aria-label="Selecionar Arthur" aria-pressed="true">
+            <img class="avatar" src="img/Arthur.png" alt="">
+        </button>
+
+        <button class="opcao-personagem" type="button" data-imagem="img/cj.png" data-nome="CJ"
+            aria-label="Selecionar CJ" aria-pressed="false">
+            <img class="avatar" src="img/cj.png" alt="">
+        </button>
+
+
+        <button class="opcao-personagem" type="button" data-imagem="img/lucia.png" data-nome="LUCIA"
+            aria-label="Selecionar Lucia" aria-pressed="false">
+            <img class="avatar" src="img/lucia.png" alt="">
+        </button>
+
+
+        <button class="opcao-personagem" type="button" data-imagem="img/jason.png" data-nome="JASON"
+            aria-label="Selecionar Jason" aria-pressed="false">
+            <img class="avatar" src="img/jason.png" alt="">
+        </button>
+
+        <button class="opcao-personagem opcao-selfie" type="button" data-nome="SELFIE"
+            aria-label="Selecionar avatar da selfie" aria-pressed="false" hidden>
+            <img class="avatar" alt="Seu avatar feito com a selfie">
+        </button>
+
+        <button class="botao-camera" type="button" aria-label="Abrir webcam" aria-expanded="false">📷</button>
+        <fieldset class="seletor-niveis" aria-label="Escolha o nível">
+            <legend>Níveis · personalize pacotes e tempo</legend>
+            <div class="opcoes-nivel">
+                <div class="cartao-nivel">
+                    <input id="nivel-1" type="radio" name="nivel-jogo" value="1">
+                    <label class="selecao-nivel" for="nivel-1">
+                        <span class="numero-nivel">01</span>
+                        <span class="nome-nivel">Fácil</span>
+                    </label>
+                    <label class="campo-config-nivel">
+                        Pacotes
+                        <input type="number" min="1" step="1" value="15" required data-config-nivel="1"
+                            data-config="pacotes" aria-label="Quantidade de pacotes do nível fácil">
+                    </label>
+                    <label class="campo-config-nivel">
+                        Tempo (min)
+                        <input type="number" min="0.5" max="99" step="0.5" value="1" required data-config-nivel="1"
+                            data-config="tempo" aria-label="Tempo em minutos do nível fácil">
+                    </label>
+                </div>
+                <div class="cartao-nivel">
+                    <input id="nivel-2" type="radio" name="nivel-jogo" value="2">
+                    <label class="selecao-nivel" for="nivel-2">
+                        <span class="numero-nivel">02</span>
+                        <span class="nome-nivel">Médio</span>
+                    </label>
+                    <label class="campo-config-nivel">
+                        Pacotes
+                        <input type="number" min="1" step="1" value="22" required data-config-nivel="2"
+                            data-config="pacotes" aria-label="Quantidade de pacotes do nível médio">
+                    </label>
+                    <label class="campo-config-nivel">
+                        Tempo (min)
+                        <input type="number" min="0.5" max="99" step="0.5" value="2" required data-config-nivel="2"
+                            data-config="tempo" aria-label="Tempo em minutos do nível médio">
+                    </label>
+                </div>
+                <div class="cartao-nivel">
+                    <input id="nivel-3" type="radio" name="nivel-jogo" value="3" checked>
+                    <label class="selecao-nivel" for="nivel-3">
+                        <span class="numero-nivel">03</span>
+                        <span class="nome-nivel">Difícil</span>
+                    </label>
+                    <label class="campo-config-nivel">
+                        Pacotes
+                        <input type="number" min="1" step="1" value="30" required data-config-nivel="3"
+                            data-config="pacotes" aria-label="Quantidade de pacotes do nível difícil">
+                    </label>
+                    <label class="campo-config-nivel">
+                        Tempo (min)
+                        <input type="number" min="0.5" max="99" step="0.5" value="4" required data-config-nivel="3"
+                            data-config="tempo" aria-label="Tempo em minutos do nível difícil">
+                    </label>
+                </div>
+            </div>
+            <small class="ajuda-config-niveis">Mínimo de 1 pacote · tempo de 0,5 a 99 minutos</small>
+        </fieldset>
+        <button class="iniciar-jogo" type="button">Jogar</button>
+
+    </div>
+
+    <section class="webcam" hidden aria-label="Prévia da webcam">
+        <video class="video-webcam" autoplay playsinline></video>
+        <p class="mensagem-webcam" role="status"></p>
+        <img class="avatar-selfie-preview" alt="Prévia do avatar gerado pela selfie" hidden>
+        <p class="aviso-selfie">Para melhor qualidade, use boa iluminação e enquadre o rosto e os ombros. A imagem é processada somente neste dispositivo.</p>
+        <button class="capturar-selfie" type="button" disabled>Tirar selfie e criar avatar</button>
+        <button class="fechar-webcam" type="button">Fechar webcam</button>
+    </section>
+
+    <section class="game-container" hidden aria-label="Jogo">
+        <canvas id="game-canvas" aria-label="Cidade vista de cima. Use WASD ou as setas para se mover e o mouse para mirar."></canvas>
+        <div class="game-hud">
+            <p id="level-text">Nível 3 · Difícil</p>
+            <p id="timer-text" role="timer" aria-live="off">Tempo: 06:00</p>
+            <p id="mission-text" role="status">Objetivo: coletar 30 pacotes</p>
+            <details class="game-tips">
+                <summary>Dicas de controles</summary>
+                <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ou setas: mover</p>
+                <p>Mouse: mudar a direção do personagem</p>
+                <p>Encontre todos os pacotes azuis antes que o tempo termine</p>
+            </details>
+            <button id="toggle-som" type="button" aria-pressed="true">Som: ligado</button>
+            <button id="exit-game" type="button">Sair do jogo</button>
+        </div>
+        <div class="mission-complete" hidden>
+            <p class="mensagem-conclusao">Nível concluído!</p>
+            <p class="contagem-proximo-nivel" role="status"></p>
+            <button class="reiniciar-jogo" type="button">Recomeçar campanha</button>
+        </div>
+    </section>
+
+</body>
+</html>
