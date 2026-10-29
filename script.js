@@ -9,6 +9,8 @@ const botaoCapturarSelfie = document.querySelector(".capturar-selfie");
 const previewSelfie = document.querySelector(".avatar-selfie-preview");
 const botaoAvatarSelfie = document.querySelector(".opcao-selfie");
 const botaoIniciar = document.querySelector(".iniciar-jogo");
+const botaoInstalarApp = document.querySelector(".botao-instalar-app");
+const mensagemInstalacao = document.querySelector(".mensagem-instalacao");
 const telaJogo = document.querySelector(".game-container");
 const canvasJogo = document.querySelector("#game-canvas");
 const contextoJogo = canvasJogo.getContext("2d");
@@ -26,6 +28,7 @@ const botaoReiniciar = document.querySelector(".reiniciar-jogo");
 const controlesDirecionais = [...document.querySelectorAll(".controle-direcional")];
 const opcoesPersonagem = [...document.querySelectorAll(".opcao-personagem")];
 let streamWebcam;
+let eventoInstalacao;
 let imagemSelecionada = imagemPersonagem.src;
 let nomeSelecionado = nomePersonagem.textContent;
 let selfieAvatarUrl;
@@ -654,6 +657,37 @@ function renderizar(tempo = performance.now()) {
 }
 
 botaoIniciar.addEventListener("click", iniciarJogo);
+botaoInstalarApp.addEventListener("click", async () => {
+  if (!eventoInstalacao) {
+    const dispositivoApple = /iPhone|iPad|iPod/.test(navigator.userAgent)
+      || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    mensagemInstalacao.textContent = dispositivoApple
+      ? "No Safari, toque em Compartilhar e escolha Adicionar à Tela de Início."
+      : "No menu do navegador, escolha Instalar aplicativo ou Adicionar à tela inicial.";
+    return;
+  }
+
+  const promptInstalacao = eventoInstalacao;
+  eventoInstalacao = undefined;
+  try {
+    await promptInstalacao.prompt();
+    const escolha = await promptInstalacao.userChoice;
+    mensagemInstalacao.textContent = escolha.outcome === "accepted"
+      ? "Aplicativo instalado com sucesso."
+      : "Instalação cancelada. Você pode instalar pelo menu do navegador.";
+  } catch (erro) {
+    console.error("Não foi possível iniciar a instalação do aplicativo.", erro);
+    mensagemInstalacao.textContent = "Não foi possível iniciar a instalação. Tente pelo menu do navegador.";
+  }
+});
+window.addEventListener("beforeinstallprompt", (evento) => {
+  evento.preventDefault();
+  eventoInstalacao = evento;
+});
+window.addEventListener("appinstalled", () => {
+  mensagemInstalacao.textContent = "Aplicativo instalado com sucesso.";
+  botaoInstalarApp.hidden = true;
+});
 controlesDirecionais.forEach((controle) => {
   controle.addEventListener("pointerdown", (evento) => {
     if (!jogoAtivo) return;
@@ -722,6 +756,17 @@ window.addEventListener("keyup", (evento) => teclasPressionadas.delete(evento.ke
 window.addEventListener("blur", () => {
   teclasPressionadas.clear();
   ponteirosDirecionais.clear();
+});
+
+const aplicativoInstalado = window.matchMedia("(display-mode: standalone)").matches
+  || navigator.standalone === true;
+if (aplicativoInstalado) botaoInstalarApp.hidden = true;
+
+window.addEventListener("load", () => {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("./service-worker.js").catch((erro) => {
+    console.error("Não foi possível habilitar o modo offline.", erro);
+  });
 });
 
 botaoCamera.addEventListener("click", async () => {
