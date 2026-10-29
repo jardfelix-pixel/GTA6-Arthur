@@ -327,7 +327,8 @@ h1 {
 .botao-camera:focus-visible,
 .fechar-webcam:focus-visible,
 .iniciar-jogo:focus-visible,
-.game-hud button:focus-visible {
+.game-hud button:focus-visible,
+.controle-direcional:focus-visible {
   outline: 2px solid white;
   outline-offset: 3px;
 }
@@ -427,6 +428,10 @@ h1 {
   display: none;
 }
 
+.controles-moveis {
+  display: none;
+}
+
 .game-container:not([hidden]) {
   position: fixed;
   inset: 0;
@@ -521,6 +526,29 @@ h1 {
   justify-self: start;
   color: #090713;
   background: #ff2d95;
+}
+
+.controle-direcional {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  padding: 0;
+  border: 1px solid rgba(51, 246, 255, 0.8);
+  border-radius: 12px;
+  color: #33f6ff;
+  background: rgba(9, 7, 19, 0.82);
+  box-shadow: 0 0 12px rgba(51, 246, 255, 0.22);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 1.4rem;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.controle-direcional:active {
+  color: #090713;
+  background: #33f6ff;
 }
 
 .mission-complete:not([hidden]) {
@@ -686,6 +714,39 @@ body.jogo-ativo {
 
   .game-tips p {
     max-width: 75vw;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .controles-moveis {
+    position: absolute;
+    bottom: max(20px, env(safe-area-inset-bottom));
+    left: max(20px, env(safe-area-inset-left));
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 54px);
+    grid-template-rows: repeat(2, 54px);
+    gap: 6px;
+  }
+
+  .controle-direcional[data-direcao="arrowup"] {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .controle-direcional[data-direcao="arrowleft"] {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .controle-direcional[data-direcao="arrowdown"] {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .controle-direcional[data-direcao="arrowright"] {
+    grid-column: 3;
+    grid-row: 2;
   }
 }
 

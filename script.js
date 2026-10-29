@@ -23,6 +23,7 @@ const telaMissaoConcluida = document.querySelector(".mission-complete");
 const botaoSair = document.querySelector("#exit-game");
 const botaoSom = document.querySelector("#toggle-som");
 const botaoReiniciar = document.querySelector(".reiniciar-jogo");
+const controlesDirecionais = [...document.querySelectorAll(".controle-direcional")];
 const opcoesPersonagem = [...document.querySelectorAll(".opcao-personagem")];
 let streamWebcam;
 let imagemSelecionada = imagemPersonagem.src;
@@ -48,6 +49,7 @@ let jogador = { x: 0, y: 0, angulo: 0 };
 let pacotes = [];
 let pacotesColetados = 0;
 const teclasPressionadas = new Set();
+const ponteirosDirecionais = new Map();
 const mouse = { x: 0, y: 0 };
 const tamanhoPacote = 28;
 const velocidadeJogador = 210;
@@ -406,12 +408,29 @@ function iniciarJogo() {
   animacaoJogo = requestAnimationFrame(atualizarJogo);
 }
 
+function atualizarPonteiroDirecional(direcao, ponteiroId, pressionado) {
+  let ponteiros = ponteirosDirecionais.get(direcao);
+  if (pressionado) {
+    if (!ponteiros) {
+      ponteiros = new Set();
+      ponteirosDirecionais.set(direcao, ponteiros);
+    }
+    ponteiros.add(ponteiroId);
+    return;
+  }
+
+  if (!ponteiros) return;
+  ponteiros.delete(ponteiroId);
+  if (!ponteiros.size) ponteirosDirecionais.delete(direcao);
+}
+
 function sairDoJogo() {
   jogoAtivo = false;
   comemorando = false;
   cancelAnimationFrame(animacaoJogo);
   clearTimeout(avisoTimeout);
   teclasPressionadas.clear();
+  ponteirosDirecionais.clear();
   encerrarAmbienteSonoro();
   document.body.classList.remove("jogo-ativo");
   telaJogo.hidden = true;
@@ -435,10 +454,10 @@ function atualizarJogo(tempo) {
 
     let movimentoX = 0;
     let movimentoY = 0;
-    if (teclasPressionadas.has("a") || teclasPressionadas.has("arrowleft")) movimentoX -= 1;
-    if (teclasPressionadas.has("d") || teclasPressionadas.has("arrowright")) movimentoX += 1;
-    if (teclasPressionadas.has("w") || teclasPressionadas.has("arrowup")) movimentoY -= 1;
-    if (teclasPressionadas.has("s") || teclasPressionadas.has("arrowdown")) movimentoY += 1;
+    if (teclasPressionadas.has("a") || teclasPressionadas.has("arrowleft") || ponteirosDirecionais.has("arrowleft")) movimentoX -= 1;
+    if (teclasPressionadas.has("d") || teclasPressionadas.has("arrowright") || ponteirosDirecionais.has("arrowright")) movimentoX += 1;
+    if (teclasPressionadas.has("w") || teclasPressionadas.has("arrowup") || ponteirosDirecionais.has("arrowup")) movimentoY -= 1;
+    if (teclasPressionadas.has("s") || teclasPressionadas.has("arrowdown") || ponteirosDirecionais.has("arrowdown")) movimentoY += 1;
 
     if (movimentoX && movimentoY) {
       movimentoX *= Math.SQRT1_2;
@@ -635,6 +654,20 @@ function renderizar(tempo = performance.now()) {
 }
 
 botaoIniciar.addEventListener("click", iniciarJogo);
+controlesDirecionais.forEach((controle) => {
+  controle.addEventListener("pointerdown", (evento) => {
+    if (!jogoAtivo) return;
+    evento.preventDefault();
+    atualizarPonteiroDirecional(controle.dataset.direcao, evento.pointerId, true);
+    controle.setPointerCapture(evento.pointerId);
+  });
+
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach((tipoEvento) => {
+    controle.addEventListener(tipoEvento, (evento) => {
+      atualizarPonteiroDirecional(controle.dataset.direcao, evento.pointerId, false);
+    });
+  });
+});
 opcoesNivel.forEach((opcao, indice) => {
   opcao.addEventListener("keydown", (evento) => {
     if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(evento.key)) return;
@@ -686,7 +719,10 @@ window.addEventListener("keydown", (evento) => {
   }
 });
 window.addEventListener("keyup", (evento) => teclasPressionadas.delete(evento.key.toLowerCase()));
-window.addEventListener("blur", () => teclasPressionadas.clear());
+window.addEventListener("blur", () => {
+  teclasPressionadas.clear();
+  ponteirosDirecionais.clear();
+});
 
 botaoCamera.addEventListener("click", async () => {
   if (streamWebcam) {
