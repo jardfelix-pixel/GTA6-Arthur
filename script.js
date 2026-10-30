@@ -757,7 +757,10 @@ if (aplicativoInstalado) botaoInstalarApp.hidden = true;
 
 window.addEventListener("load", () => {
   if (!("serviceWorker" in navigator)) return;
-  navigator.serviceWorker.register("./service-worker.js").catch((erro) => {
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    window.location.reload();
+  }, { once: true });
+  navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" }).catch((erro) => {
     console.error("Não foi possível habilitar o modo offline.", erro);
   });
 });

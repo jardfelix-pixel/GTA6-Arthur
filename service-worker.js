@@ -1,4 +1,4 @@
-const CACHE_NAME = "gta-arthur-shell-v3";
+const CACHE_NAME = "gta-arthur-shell-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -20,7 +20,9 @@ const APP_SHELL = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     Promise.all([
-      caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)),
+      caches.open(CACHE_NAME).then((cache) => cache.addAll(
+        APP_SHELL.map((caminho) => new Request(caminho, { cache: "reload" }))
+      )),
       self.skipWaiting()
     ])
   );
@@ -48,7 +50,7 @@ self.addEventListener("fetch", (event) => {
     (async () => {
       let response;
       try {
-        response = await fetch(request);
+        response = await fetch(request, { cache: "no-cache" });
       } catch (erro) {
         const cachedResponse = await caches.match(request);
         if (cachedResponse) return cachedResponse;
