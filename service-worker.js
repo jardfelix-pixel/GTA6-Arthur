@@ -1,4 +1,4 @@
-const CACHE_NAME = "gta-arthur-shell-v2";
+const CACHE_NAME = "gta-arthur-shell-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -44,31 +44,30 @@ self.addEventListener("fetch", (event) => {
   const requestUrl = new URL(request.url);
   if (request.method !== "GET" || requestUrl.origin !== self.location.origin) return;
 
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then(async (response) => {
-          if (response.ok) {
-            const cache = await caches.open(CACHE_NAME);
-            await cache.put(request, response.clone());
-          }
-          return response;
-        })
-        .catch(async () => (await caches.match(request)) || caches.match("./index.html"))
-    );
-    return;
-  }
-
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-      return fetch(request).then(async (response) => {
-        if (response.ok) {
+    (async () => {
+      let response;
+      try {
+        response = await fetch(request);
+      } catch (erro) {
+        const cachedResponse = await caches.match(request);
+        if (cachedResponse) return cachedResponse;
+        if (request.mode === "navigate") {
+          const paginaInicial = await caches.match("./index.html");
+          if (paginaInicial) return paginaInicial;
+        }
+        throw erro;
+      }
+
+      if (response.ok) {
+        try {
           const cache = await caches.open(CACHE_NAME);
           await cache.put(request, response.clone());
+        } catch (erro) {
+          console.error("Não foi possível atualizar o cache offline.", erro);
         }
-        return response;
-      });
-    })
+      }
+      return response;
+    })()
   );
 });

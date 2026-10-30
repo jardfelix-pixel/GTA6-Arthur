@@ -650,9 +650,18 @@ botaoInstalarApp.addEventListener("click", async () => {
   if (!eventoInstalacao) {
     const dispositivoApple = /iPhone|iPad|iPod/.test(navigator.userAgent)
       || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const navegadorEdge = /Edg\//.test(navigator.userAgent);
+    const navegadorChrome = /Chrome|CriOS/.test(navigator.userAgent);
+    const android = /Android/.test(navigator.userAgent);
     mensagemInstalacao.textContent = dispositivoApple
-      ? "No Safari, toque em Compartilhar e escolha Adicionar à Tela de Início."
-      : "No menu do navegador, escolha Instalar aplicativo ou Adicionar à tela inicial.";
+      ? "No Safari, toque em Compartilhar e escolha Adicionar à Tela de Início. A instalação é feita pelo navegador, sem baixar um arquivo."
+      : android
+        ? "No Chrome, abra o menu ⋮ e escolha Instalar app ou Adicionar à tela inicial. A instalação é feita pelo navegador."
+        : navegadorEdge
+          ? "No Edge, abra o menu ⋯ e escolha Aplicativos > Instalar este site como aplicativo."
+          : navegadorChrome
+            ? "No Chrome, use o ícone de instalação na barra de endereço ou o menu ⋮ > Transmitir, salvar e compartilhar > Instalar página como app."
+            : "Este navegador não abriu a instalação. Abra o link no Chrome ou Edge (Windows/Android), ou no Safari (iPhone/iPad), e instale pelo menu do navegador.";
     return;
   }
 
