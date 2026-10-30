@@ -48,12 +48,11 @@ let passoAtual = 0;
 let tempoRestante = 240;
 let nivelAtual = 3;
 let avisoTimeout;
-let jogador = { x: 0, y: 0, angulo: 0 };
+let jogador = { x: 0, y: 0 };
 let pacotes = [];
 let pacotesColetados = 0;
 const teclasPressionadas = new Set();
 const ponteirosDirecionais = new Map();
-const mouse = { x: 0, y: 0 };
 const tamanhoPacote = 28;
 const velocidadeJogador = 210;
 const tamanhoCidade = 240;
@@ -128,7 +127,7 @@ function prepararAudio() {
   });
 }
 
-function tocarNotas(notas) {
+function tocarNotas(notas, volume = 0.12) {
   if (!contextoAudio || !audioAtivo || contextoAudio.state !== "running") return;
   const agora = contextoAudio.currentTime;
 
@@ -140,7 +139,7 @@ function tocarNotas(notas) {
     oscilador.type = forma;
     oscilador.frequency.setValueAtTime(frequencia, inicioNota);
     ganho.gain.setValueAtTime(0.0001, inicioNota);
-    ganho.gain.exponentialRampToValueAtTime(0.12, inicioNota + 0.02);
+    ganho.gain.exponentialRampToValueAtTime(volume, inicioNota + 0.02);
     ganho.gain.exponentialRampToValueAtTime(0.0001, fimNota);
     oscilador.connect(ganho);
     ganho.connect(volumeAudio);
@@ -170,13 +169,13 @@ function tocarPasso() {
   oscilador.frequency.setValueAtTime(passoAtual % 2 ? 150 : 185, agora);
   oscilador.frequency.exponentialRampToValueAtTime(82, agora + 0.13);
   ganho.gain.setValueAtTime(0.0001, agora);
-  ganho.gain.exponentialRampToValueAtTime(0.28, agora + 0.012);
+  ganho.gain.exponentialRampToValueAtTime(0.364, agora + 0.012);
   ganho.gain.exponentialRampToValueAtTime(0.0001, agora + 0.19);
   clique.type = "sine";
   clique.frequency.setValueAtTime(620, agora);
   clique.frequency.exponentialRampToValueAtTime(210, agora + 0.045);
   ganhoClique.gain.setValueAtTime(0.0001, agora);
-  ganhoClique.gain.exponentialRampToValueAtTime(0.07, agora + 0.006);
+  ganhoClique.gain.exponentialRampToValueAtTime(0.091, agora + 0.006);
   ganhoClique.gain.exponentialRampToValueAtTime(0.0001, agora + 0.06);
   oscilador.connect(ganho);
   ganho.connect(volumeAudio);
@@ -195,7 +194,7 @@ function tocarMissaoConcluida() {
     { frequencia: 659.25, inicio: 0.16, duracao: 0.22, forma: "triangle" },
     { frequencia: 783.99, inicio: 0.32, duracao: 0.22, forma: "triangle" },
     { frequencia: 1046.5, inicio: 0.48, duracao: 0.5, forma: "triangle" }
-  ]);
+  ], 0.156);
 }
 
 function encerrarAmbienteSonoro() {
@@ -334,7 +333,7 @@ function ajustarCanvas() {
 }
 
 function iniciarMissao() {
-  jogador = { x: 0, y: 0, angulo: 0 };
+  jogador = { x: 0, y: 0 };
   pacotesColetados = 0;
   comemorando = false;
   inicioComemoracao = 0;
@@ -470,12 +469,6 @@ function atualizarJogo(tempo) {
     jogador.x += movimentoX * velocidadeJogador * delta;
     jogador.y += movimentoY * velocidadeJogador * delta;
 
-    const largura = canvasJogo.clientWidth;
-    const altura = canvasJogo.clientHeight;
-    const ponteiroX = mouse.x - largura / 2;
-    const ponteiroY = mouse.y - altura / 2;
-    if (ponteiroX || ponteiroY) jogador.angulo = Math.atan2(ponteiroY, ponteiroX) + Math.PI / 2;
-
     pacotes.forEach((pacote) => {
       if (pacote.coletado) return;
       if (Math.hypot(pacote.x - jogador.x, pacote.y - jogador.y) < tamanhoPacote) {
@@ -609,14 +602,11 @@ function renderizar(tempo = performance.now()) {
   contextoJogo.translate(centroX, centroY);
   let salto = 0;
   let escala = 1;
-  let rotacao = jogador.angulo;
   if (comemorando) {
     const progresso = Math.max(0, (tempo - inicioComemoracao) / 1000);
     const intensidade = Math.max(0, 1 - progresso / 5);
     salto = Math.abs(Math.sin(progresso * 9)) * 24 * intensidade;
     escala += Math.sin(progresso * 12) * 0.12 * intensidade;
-    rotacao += Math.sin(progresso * 8) * 0.45 * intensidade;
-
     contextoJogo.save();
     contextoJogo.globalAlpha = 0.45 + Math.sin(progresso * 10) * 0.2;
     contextoJogo.strokeStyle = "#33f6ff";
@@ -629,7 +619,6 @@ function renderizar(tempo = performance.now()) {
     contextoJogo.restore();
   }
   contextoJogo.translate(0, -salto);
-  contextoJogo.rotate(rotacao);
   contextoJogo.scale(escala, escala);
   if (nomeSelecionado === "SELFIE" && imagemDoJogo?.complete && imagemDoJogo.naturalWidth) {
     contextoJogo.save();
@@ -738,11 +727,6 @@ botaoReiniciar.addEventListener("click", () => {
   contagemProximoNivel.hidden = true;
   iniciarAmbienteSonoro();
   animacaoJogo = requestAnimationFrame(atualizarJogo);
-});
-canvasJogo.addEventListener("mousemove", (evento) => {
-  const limites = canvasJogo.getBoundingClientRect();
-  mouse.x = evento.clientX - limites.left;
-  mouse.y = evento.clientY - limites.top;
 });
 window.addEventListener("resize", ajustarCanvas);
 window.addEventListener("keydown", (evento) => {
