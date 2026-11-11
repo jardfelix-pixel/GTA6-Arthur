@@ -1,5 +1,7 @@
 const imagemPersonagem = document.querySelector(".personagem");
 const nomePersonagem = document.querySelector(".jogador");
+const imagemAvatarHud = document.querySelector(".avatar-hud-imagem");
+const nomeAvatarHud = document.querySelector(".avatar-hud-nome");
 const botaoCamera = document.querySelector(".botao-camera");
 const painelWebcam = document.querySelector(".webcam");
 const videoWebcam = document.querySelector(".video-webcam");
@@ -14,17 +16,21 @@ const mensagemInstalacao = document.querySelector(".mensagem-instalacao");
 const telaJogo = document.querySelector(".game-container");
 const canvasJogo = document.querySelector("#game-canvas");
 const contextoJogo = canvasJogo.getContext("2d");
-const textoMissao = document.querySelector("#mission-text");
 const textoNivel = document.querySelector("#level-text");
-const textoTempo = document.querySelector("#timer-text");
+const textoVida = document.querySelector("#health-text");
+const barraVida = document.querySelector("#health-fill");
+const textoAbates = document.querySelector("#kills-text span");
+const textoMunicao = document.querySelector("#ammo-text span");
 const mensagemConclusao = document.querySelector(".mensagem-conclusao");
 const contagemProximoNivel = document.querySelector(".contagem-proximo-nivel");
 const opcoesNivel = [...document.querySelectorAll('input[name="nivel-jogo"]')];
-const camposConfiguracaoNivel = [...document.querySelectorAll("[data-config-nivel]")];
 const telaMissaoConcluida = document.querySelector(".mission-complete");
 const botaoSair = document.querySelector("#exit-game");
+const botaoSairFinal = document.querySelector(".sair-jogo-final");
 const botaoSom = document.querySelector("#toggle-som");
 const botaoReiniciar = document.querySelector(".reiniciar-jogo");
+const botaoDisparar = document.querySelector(".botao-disparar");
+const botaoRecarregar = document.querySelector(".botao-recarregar");
 const controlesDirecionais = [...document.querySelectorAll(".controle-direcional")];
 const opcoesPersonagem = [...document.querySelectorAll(".opcao-personagem")];
 let streamWebcam;
@@ -35,9 +41,6 @@ let selfieAvatarUrl;
 let imagemDoJogo;
 let animacaoJogo;
 let jogoAtivo = false;
-let comemorando = false;
-let inicioComemoracao = 0;
-let campanhaConcluida = false;
 let tempoAnterior = 0;
 let contextoAudio;
 let volumeAudio;
@@ -45,44 +48,25 @@ let audioAtivo = true;
 let osciladoresAmbiente = [];
 let proximoPassoAudio = 0;
 let passoAtual = 0;
-let tempoRestante = 240;
 let nivelAtual = 3;
-let avisoTimeout;
-let jogador = { x: 0, y: 0 };
-let pacotes = [];
-let pacotesColetados = 0;
+let jogador = { x: 0, distancia: 0, vida: 100 };
+let balas = [];
+let zumbis = [];
+let abates = 0;
+let municao = 30;
+let reservaMunicao = 120;
+let tempoSpawn = 0;
+let tempoDisparo = 0;
+let tempoDano = 0;
+let mira = { x: 0, y: 0 };
 const teclasPressionadas = new Set();
 const ponteirosDirecionais = new Map();
-const tamanhoPacote = 28;
-const velocidadeJogador = 210;
-const tamanhoCidade = 240;
+const velocidadeJogador = 5;
 const niveis = {
-  1: { nome: "Fácil", pacotes: 15, tempo: 60 },
-  2: { nome: "Médio", pacotes: 22, tempo: 120 },
-  3: { nome: "Difícil", pacotes: 30, tempo: 240 }
+  1: { nome: "Fácil", intervalo: 2, velocidade: 1.4, dano: 8 },
+  2: { nome: "Médio", intervalo: 1.5, velocidade: 1.8, dano: 12 },
+  3: { nome: "Difícil", intervalo: 1.1, velocidade: 2.2, dano: 16 }
 };
-function obterPosicoesPacotes(quantidade) {
-  const totalPosicoes = Math.max(30, quantidade * 2);
-  const colunas = Math.ceil(Math.sqrt(totalPosicoes));
-  const linhas = Math.ceil(totalPosicoes / colunas);
-  const espacamento = 180;
-  const variacao = 50;
-  const posicoes = Array.from({ length: colunas * linhas }, (_, indice) => {
-    const coluna = indice % colunas;
-    const linha = Math.floor(indice / colunas);
-    return {
-      x: (coluna - (colunas - 1) / 2) * espacamento + (Math.random() - 0.5) * variacao,
-      y: (linha - (linhas - 1) / 2) * espacamento + (Math.random() - 0.5) * variacao
-    };
-  });
-
-  for (let indice = posicoes.length - 1; indice > 0; indice -= 1) {
-    const indiceAleatorio = Math.floor(Math.random() * (indice + 1));
-    [posicoes[indice], posicoes[indiceAleatorio]] = [posicoes[indiceAleatorio], posicoes[indice]];
-  }
-
-  return posicoes.slice(0, quantidade);
-}
 
 function atualizarBotaoSom(texto = `Som: ${audioAtivo ? "ligado" : "desligado"}`) {
   botaoSom.textContent = texto;
@@ -127,34 +111,6 @@ function prepararAudio() {
   });
 }
 
-function tocarNotas(notas, volume = 0.12) {
-  if (!contextoAudio || !audioAtivo || contextoAudio.state !== "running") return;
-  const agora = contextoAudio.currentTime;
-
-  notas.forEach(({ frequencia, inicio, duracao, forma = "sine" }) => {
-    const oscilador = contextoAudio.createOscillator();
-    const ganho = contextoAudio.createGain();
-    const inicioNota = agora + inicio;
-    const fimNota = inicioNota + duracao;
-    oscilador.type = forma;
-    oscilador.frequency.setValueAtTime(frequencia, inicioNota);
-    ganho.gain.setValueAtTime(0.0001, inicioNota);
-    ganho.gain.exponentialRampToValueAtTime(volume, inicioNota + 0.02);
-    ganho.gain.exponentialRampToValueAtTime(0.0001, fimNota);
-    oscilador.connect(ganho);
-    ganho.connect(volumeAudio);
-    oscilador.start(inicioNota);
-    oscilador.stop(fimNota + 0.02);
-  });
-}
-
-function tocarColeta() {
-  tocarNotas([
-    { frequencia: 660, inicio: 0, duracao: 0.13 },
-    { frequencia: 990, inicio: 0.09, duracao: 0.2, forma: "triangle" }
-  ]);
-}
-
 function tocarPasso() {
   if (!contextoAudio || !audioAtivo || contextoAudio.state !== "running") return;
   const agora = contextoAudio.currentTime;
@@ -186,15 +142,6 @@ function tocarPasso() {
   clique.start(agora);
   clique.stop(agora + 0.07);
   passoAtual += 1;
-}
-
-function tocarMissaoConcluida() {
-  tocarNotas([
-    { frequencia: 523.25, inicio: 0, duracao: 0.22, forma: "triangle" },
-    { frequencia: 659.25, inicio: 0.16, duracao: 0.22, forma: "triangle" },
-    { frequencia: 783.99, inicio: 0.32, duracao: 0.22, forma: "triangle" },
-    { frequencia: 1046.5, inicio: 0.48, duracao: 0.5, forma: "triangle" }
-  ], 0.156);
 }
 
 function encerrarAmbienteSonoro() {
@@ -241,6 +188,9 @@ function selecionarPersonagem(imagem, nome) {
   imagemPersonagem.alt = nome;
   imagemPersonagem.classList.toggle("personagem-selfie", nome === "SELFIE");
   nomePersonagem.textContent = nome;
+  imagemAvatarHud.src = imagem;
+  imagemAvatarHud.alt = `Avatar do jogador ${nome}`;
+  nomeAvatarHud.textContent = nome;
   opcoesPersonagem.forEach((opcao) => {
     opcao.setAttribute("aria-pressed", String(opcao.dataset.nome === nome));
   });
@@ -332,79 +282,44 @@ function ajustarCanvas() {
   renderizar();
 }
 
-function iniciarMissao() {
-  jogador = { x: 0, y: 0 };
-  pacotesColetados = 0;
-  comemorando = false;
-  inicioComemoracao = 0;
-  const nivel = niveis[nivelAtual];
-  pacotes = obterPosicoesPacotes(nivel.pacotes).map((posicao) => ({ ...posicao, coletado: false }));
-  tempoRestante = nivel.tempo;
+function atualizarHudCombate() {
+  textoVida.textContent = `${Math.ceil(jogador.vida)}%`;
+  barraVida.style.width = `${jogador.vida}%`;
+  barraVida.dataset.critico = String(jogador.vida <= 30);
+  textoAbates.textContent = String(abates);
+  textoMunicao.textContent = `${municao} / ${reservaMunicao}`;
+}
+
+function iniciarPartida() {
+  jogador = { x: 0, distancia: 0, vida: 100 };
+  balas = [];
+  zumbis = [];
+  abates = 0;
+  municao = 30;
+  reservaMunicao = 120;
+  tempoSpawn = 0;
+  tempoDisparo = 0;
+  tempoDano = 0;
+  mira = { x: canvasJogo.clientWidth / 2, y: canvasJogo.clientHeight * 0.4 };
   tempoAnterior = 0;
+  teclasPressionadas.clear();
+  ponteirosDirecionais.clear();
   telaMissaoConcluida.hidden = true;
-  textoNivel.textContent = `Nível ${nivelAtual} · ${nivel.nome}`;
-  atualizarTextoTempo();
-  textoMissao.textContent = `Objetivo: coletar ${pacotes.length} pacotes (${pacotesColetados}/${pacotes.length})`;
-}
-
-function formatarTempo(segundos) {
-  const totalSegundos = Math.ceil(Math.max(0, segundos));
-  const minutos = Math.floor(totalSegundos / 60);
-  const restantes = totalSegundos % 60;
-  return `${String(minutos).padStart(2, "0")}:${String(restantes).padStart(2, "0")}`;
-}
-
-function atualizarTextoTempo() {
-  textoTempo.textContent = `Tempo: ${formatarTempo(tempoRestante)}`;
-}
-
-function reiniciarNivelPorTempo() {
-  clearTimeout(avisoTimeout);
-  iniciarMissao();
-  textoMissao.textContent = "Tempo esgotado! O nível foi reiniciado.";
-  avisoTimeout = setTimeout(() => {
-    if (jogoAtivo) {
-      textoMissao.textContent = `Objetivo: coletar ${pacotes.length} pacotes (${pacotesColetados}/${pacotes.length})`;
-    }
-  }, 2200);
-}
-
-function atualizarConfiguracaoNiveis() {
-  camposConfiguracaoNivel
-    .filter((campo) => campo.dataset.config === "pacotes")
-    .forEach((campo) => {
-      campo.setCustomValidity(Number.isSafeInteger(campo.valueAsNumber)
-        ? ""
-        : "Informe uma quantidade inteira válida de pacotes.");
-    });
-
-  const campoInvalido = camposConfiguracaoNivel.find((campo) => !campo.checkValidity());
-  if (campoInvalido) {
-    campoInvalido.reportValidity();
-    return false;
-  }
-
-  camposConfiguracaoNivel.forEach((campo) => {
-    const nivel = niveis[campo.dataset.configNivel];
-    const valor = campo.valueAsNumber;
-    nivel[campo.dataset.config] = campo.dataset.config === "tempo"
-      ? Math.round(valor * 60)
-      : valor;
-  });
-  return true;
+  textoNivel.textContent = `Nível ${nivelAtual} · ${niveis[nivelAtual].nome}`;
+  atualizarHudCombate();
 }
 
 function iniciarJogo() {
-  if (!atualizarConfiguracaoNiveis()) return;
   fecharWebcam();
-  campanhaConcluida = false;
   nivelAtual = Number(document.querySelector('input[name="nivel-jogo"]:checked').value);
   imagemDoJogo = new Image();
   imagemDoJogo.src = imagemSelecionada;
-  iniciarMissao();
+  iniciarPartida();
   document.body.classList.add("jogo-ativo");
   telaJogo.hidden = false;
   jogoAtivo = true;
+  mira = { x: canvasJogo.clientWidth / 2, y: canvasJogo.clientHeight * 0.43 };
+  canvasJogo.focus();
   ajustarCanvas();
   prepararAudio();
   animacaoJogo = requestAnimationFrame(atualizarJogo);
@@ -428,9 +343,7 @@ function atualizarPonteiroDirecional(direcao, ponteiroId, pressionado) {
 
 function sairDoJogo() {
   jogoAtivo = false;
-  comemorando = false;
   cancelAnimationFrame(animacaoJogo);
-  clearTimeout(avisoTimeout);
   teclasPressionadas.clear();
   ponteirosDirecionais.clear();
   encerrarAmbienteSonoro();
@@ -439,211 +352,445 @@ function sairDoJogo() {
   limparAvatarSelfie();
 }
 
+function recarregarArma() {
+  if (!jogoAtivo || municao === 30 || reservaMunicao === 0) return;
+  const quantidade = Math.min(30 - municao, reservaMunicao);
+  municao += quantidade;
+  reservaMunicao -= quantidade;
+  atualizarHudCombate();
+}
+
+function disparar() {
+  if (!jogoAtivo || municao <= 0 || tempoDisparo > 0) return;
+  municao -= 1;
+  tempoDisparo = 0.2;
+  const { yaw, pitch } = obterAngulosMira(canvasJogo.clientWidth, canvasJogo.clientHeight);
+  const cossenoPitch = Math.cos(pitch);
+  balas.push({
+    x: jogador.x + Math.sin(yaw) * 0.8 + Math.cos(yaw) * 0.45,
+    distancia: jogador.distancia + Math.cos(yaw) * 0.8 - Math.sin(yaw) * 0.45,
+    altura: 1.35,
+    vx: Math.sin(yaw) * cossenoPitch * 48,
+    velocidadeFrente: Math.cos(yaw) * cossenoPitch * 48,
+    velocidadeAltura: Math.sin(pitch) * 48,
+    vida: 2
+  });
+  atualizarHudCombate();
+}
+
+function criarZumbi() {
+  zumbis.push({
+    x: jogador.x + (Math.random() - 0.5) * 7,
+    distancia: jogador.distancia + 26 + Math.random() * 16,
+    tempoAtaque: 0
+  });
+}
+
+function obterAngulosMira(largura, altura) {
+  const focal = altura * 0.92;
+  const yaw = Math.atan((mira.x - largura / 2) / focal);
+  const pitch = Math.max(-0.3, Math.min(0.35, Math.atan((altura / 2 - mira.y) / focal)));
+  return { yaw, pitch };
+}
+
 function atualizarJogo(tempo) {
-  if (!jogoAtivo && !comemorando) return;
+  if (!jogoAtivo) return;
   const delta = tempoAnterior ? Math.min((tempo - tempoAnterior) / 1000, 0.05) : 0;
   tempoAnterior = tempo;
+  tempoDisparo = Math.max(0, tempoDisparo - delta);
+  tempoDano = Math.max(0, tempoDano - delta);
+  if (teclasPressionadas.has(" ") || ponteirosDirecionais.has("fire")) disparar();
 
-  if (jogoAtivo) {
-    tempoRestante = Math.max(0, tempoRestante - delta);
-    atualizarTextoTempo();
-    if (tempoRestante <= 0) {
-      reiniciarNivelPorTempo();
-      renderizar(tempo);
-      animacaoJogo = requestAnimationFrame(atualizarJogo);
-      return;
+  let movimentoLateral = 0;
+  let movimentoFrente = 0;
+  if (teclasPressionadas.has("a") || teclasPressionadas.has("arrowleft") || ponteirosDirecionais.has("arrowleft")) movimentoLateral -= 1;
+  if (teclasPressionadas.has("d") || teclasPressionadas.has("arrowright") || ponteirosDirecionais.has("arrowright")) movimentoLateral += 1;
+  if (teclasPressionadas.has("w") || teclasPressionadas.has("arrowup") || ponteirosDirecionais.has("arrowup")) movimentoFrente += 1;
+  if (teclasPressionadas.has("s") || teclasPressionadas.has("arrowdown") || ponteirosDirecionais.has("arrowdown")) movimentoFrente -= 1;
+  if (movimentoLateral && movimentoFrente) {
+    movimentoLateral *= Math.SQRT1_2;
+    movimentoFrente *= Math.SQRT1_2;
+  }
+  if (movimentoLateral || movimentoFrente) tocarPasso();
+  const { yaw } = obterAngulosMira(canvasJogo.clientWidth, canvasJogo.clientHeight);
+  jogador.x += (Math.cos(yaw) * movimentoLateral + Math.sin(yaw) * movimentoFrente) * velocidadeJogador * delta;
+  jogador.distancia += (Math.cos(yaw) * movimentoFrente - Math.sin(yaw) * movimentoLateral) * velocidadeJogador * delta;
+
+  tempoSpawn += delta;
+  if (tempoSpawn >= niveis[nivelAtual].intervalo && zumbis.length < 24) {
+    tempoSpawn = 0;
+    criarZumbi();
+  }
+
+  balas.forEach((bala) => {
+    const anteriorX = bala.x;
+    const anteriorDistancia = bala.distancia;
+    const anteriorAltura = bala.altura;
+    bala.x += bala.vx * delta;
+    bala.distancia += bala.velocidadeFrente * delta;
+    bala.altura += bala.velocidadeAltura * delta;
+    bala.vida -= delta;
+    const segmentoX = bala.x - anteriorX;
+    const segmentoDistancia = bala.distancia - anteriorDistancia;
+    const segmentoAltura = bala.altura - anteriorAltura;
+    const comprimentoQuadrado = segmentoX ** 2 + segmentoDistancia ** 2 + segmentoAltura ** 2;
+    for (let indice = zumbis.length - 1; indice >= 0; indice -= 1) {
+      const zumbi = zumbis[indice];
+      const relativoX = zumbi.x - anteriorX;
+      const relativoDistancia = zumbi.distancia - anteriorDistancia;
+      const relativoAltura = 0.95 - anteriorAltura;
+      const fator = comprimentoQuadrado
+        ? Math.max(0, Math.min(1,
+          (relativoX * segmentoX + relativoDistancia * segmentoDistancia + relativoAltura * segmentoAltura)
+          / comprimentoQuadrado))
+        : 0;
+      const distanciaX = anteriorX + fator * segmentoX - zumbi.x;
+      const distanciaFrente = anteriorDistancia + fator * segmentoDistancia - zumbi.distancia;
+      const distanciaAltura = anteriorAltura + fator * segmentoAltura - 0.95;
+      if (distanciaX ** 2 + distanciaFrente ** 2 + distanciaAltura ** 2 > 0.55 ** 2) continue;
+      zumbis.splice(indice, 1);
+      bala.vida = 0;
+      abates += 1;
+      reservaMunicao = Math.min(120, reservaMunicao + 4);
+      break;
     }
+  });
+  balas = balas.filter((bala) =>
+    bala.vida > 0 && bala.distancia < jogador.distancia + 140
+  );
 
-    let movimentoX = 0;
-    let movimentoY = 0;
-    if (teclasPressionadas.has("a") || teclasPressionadas.has("arrowleft") || ponteirosDirecionais.has("arrowleft")) movimentoX -= 1;
-    if (teclasPressionadas.has("d") || teclasPressionadas.has("arrowright") || ponteirosDirecionais.has("arrowright")) movimentoX += 1;
-    if (teclasPressionadas.has("w") || teclasPressionadas.has("arrowup") || ponteirosDirecionais.has("arrowup")) movimentoY -= 1;
-    if (teclasPressionadas.has("s") || teclasPressionadas.has("arrowdown") || ponteirosDirecionais.has("arrowdown")) movimentoY += 1;
-
-    if (movimentoX && movimentoY) {
-      movimentoX *= Math.SQRT1_2;
-      movimentoY *= Math.SQRT1_2;
-    }
-    if (movimentoX || movimentoY) tocarPasso();
-    jogador.x += movimentoX * velocidadeJogador * delta;
-    jogador.y += movimentoY * velocidadeJogador * delta;
-
-    pacotes.forEach((pacote) => {
-      if (pacote.coletado) return;
-      if (Math.hypot(pacote.x - jogador.x, pacote.y - jogador.y) < tamanhoPacote) {
-        pacote.coletado = true;
-        pacotesColetados += 1;
-        textoMissao.textContent = `Objetivo: coletar ${pacotes.length} pacotes (${pacotesColetados}/${pacotes.length})`;
-        tocarColeta();
-      }
-    });
-
-    if (pacotesColetados === pacotes.length) {
-      jogoAtivo = false;
-      comemorando = true;
-      inicioComemoracao = tempo;
-      teclasPressionadas.clear();
-      const temProximoNivel = nivelAtual < 3;
-      mensagemConclusao.textContent = temProximoNivel ? `Nível ${nivelAtual} concluído!` : "Campanha concluída!";
-      contagemProximoNivel.hidden = !temProximoNivel;
-      botaoReiniciar.hidden = temProximoNivel;
-      if (temProximoNivel) {
-        contagemProximoNivel.textContent = "Próximo nível em 5 segundos...";
-      } else {
-        campanhaConcluida = true;
+  zumbis.forEach((zumbi) => {
+    if (!jogoAtivo) return;
+    const diferencaX = jogador.x - zumbi.x;
+    const diferencaFrente = jogador.distancia - zumbi.distancia;
+    const distancia = Math.hypot(diferencaX, diferencaFrente) || 1;
+    zumbi.x += (diferencaX / distancia) * niveis[nivelAtual].velocidade * delta;
+    zumbi.distancia += (diferencaFrente / distancia) * niveis[nivelAtual].velocidade * delta;
+    zumbi.tempoAtaque = Math.max(0, zumbi.tempoAtaque - delta);
+    if (distancia < 1.4 && zumbi.tempoAtaque === 0 && tempoDano === 0) {
+      zumbi.tempoAtaque = 0.8;
+      tempoDano = 0.45;
+      jogador.vida = Math.max(0, jogador.vida - niveis[nivelAtual].dano);
+      if (jogador.vida === 0) {
+        jogoAtivo = false;
+        teclasPressionadas.clear();
+        ponteirosDirecionais.clear();
+        mensagemConclusao.textContent = "VOCÊ FOI DERROTADO";
+        contagemProximoNivel.textContent = `Zumbis eliminados: ${abates}`;
+        contagemProximoNivel.hidden = false;
         botaoReiniciar.hidden = false;
-        botaoReiniciar.textContent = "Recomeçar campanha";
-      }
-      telaMissaoConcluida.hidden = false;
-      tocarMissaoConcluida();
-    }
-  }
-
-  if (comemorando) {
-    const segundosAteProximo = Math.max(0, Math.ceil(5 - (tempo - inicioComemoracao) / 1000));
-    if (nivelAtual < 3) {
-      contagemProximoNivel.textContent = `Próximo nível em ${segundosAteProximo} segundo${segundosAteProximo === 1 ? "" : "s"}...`;
-      if (segundosAteProximo === 0) {
-        nivelAtual += 1;
-        opcoesNivel.forEach((opcao) => {
-          opcao.checked = Number(opcao.value) === nivelAtual;
-        });
-        iniciarMissao();
-        jogoAtivo = true;
-        tempoAnterior = tempo;
+        botaoReiniciar.textContent = "Tentar novamente";
+        telaMissaoConcluida.hidden = false;
       }
     }
-  }
+  });
+  atualizarHudCombate();
+  renderizar();
+  if (jogoAtivo) animacaoJogo = requestAnimationFrame(atualizarJogo);
+}
 
-  renderizar(tempo);
-  if (jogoAtivo || (comemorando && tempo - inicioComemoracao < 5000)) {
-    animacaoJogo = requestAnimationFrame(atualizarJogo);
-  } else {
-    comemorando = false;
+function projetarPonto(x, distancia, alturaObjeto, largura, altura, yaw, pitch) {
+  const focal = altura * 0.92;
+  const relativoX = x - jogador.x;
+  const relativoDistancia = distancia - jogador.distancia;
+  const cameraX = relativoX * Math.cos(yaw) - relativoDistancia * Math.sin(yaw);
+  const cameraDistancia = relativoX * Math.sin(yaw) + relativoDistancia * Math.cos(yaw);
+  const cameraAltura = alturaObjeto - 1.6;
+  const profundidade = cameraDistancia * Math.cos(pitch) + cameraAltura * Math.sin(pitch);
+  if (profundidade <= 0.5) return null;
+  const alturaCamera = cameraAltura * Math.cos(pitch) - cameraDistancia * Math.sin(pitch);
+  return {
+    x: largura / 2 + focal * cameraX / profundidade,
+    y: altura / 2 - focal * alturaCamera / profundidade,
+    escala: focal / profundidade
+  };
+}
+
+function desenharPoligono(pontos, cor, borda) {
+  if (pontos.some((ponto) => !ponto)) return;
+  contextoJogo.beginPath();
+  contextoJogo.moveTo(pontos[0].x, pontos[0].y);
+  pontos.slice(1).forEach((ponto) => contextoJogo.lineTo(ponto.x, ponto.y));
+  contextoJogo.closePath();
+  contextoJogo.fillStyle = cor;
+  contextoJogo.fill();
+  if (borda) {
+    contextoJogo.strokeStyle = borda;
+    contextoJogo.lineWidth = 1;
+    contextoJogo.stroke();
   }
 }
 
-function corDoBloco(coluna, linha) {
-  const valor = Math.abs(Math.sin(coluna * 127.1 + linha * 311.7) * 43758.5453) % 1;
-  return valor > 0.5 ? "#ff2d95" : "#7b2dff";
-}
-
-function renderizarCidade(largura, altura) {
-  contextoJogo.fillStyle = "#090713";
+function desenharCidade(largura, altura, yaw, pitch) {
+  const gradienteCeu = contextoJogo.createLinearGradient(0, 0, 0, altura * 0.62);
+  gradienteCeu.addColorStop(0, "#253341");
+  gradienteCeu.addColorStop(0.7, "#77807b");
+  gradienteCeu.addColorStop(1, "#d0a578");
+  contextoJogo.fillStyle = gradienteCeu;
   contextoJogo.fillRect(0, 0, largura, altura);
 
-  const cameraX = jogador.x - largura / 2;
-  const cameraY = jogador.y - altura / 2;
-  const inicioColuna = Math.floor(cameraX / tamanhoCidade) - 1;
-  const fimColuna = Math.ceil((cameraX + largura) / tamanhoCidade) + 1;
-  const inicioLinha = Math.floor(cameraY / tamanhoCidade) - 1;
-  const fimLinha = Math.ceil((cameraY + altura) / tamanhoCidade) + 1;
+  const horizonte = altura * 0.52;
+  contextoJogo.fillStyle = "#272e30";
+  for (let indice = 0; indice < 17; indice += 1) {
+    const posicao = indice / 16;
+    const x = posicao * largura;
+    const larguraPredio = largura * (0.025 + ((indice * 37) % 8) / 100);
+    const alturaPredio = altura * (0.06 + ((indice * 19) % 11) / 100);
+    contextoJogo.fillRect(x, horizonte - alturaPredio, larguraPredio, alturaPredio);
+  }
 
-  for (let coluna = inicioColuna; coluna <= fimColuna; coluna += 1) {
-    for (let linha = inicioLinha; linha <= fimLinha; linha += 1) {
-      const x = coluna * tamanhoCidade - cameraX;
-      const y = linha * tamanhoCidade - cameraY;
-      const cor = corDoBloco(coluna, linha);
-      contextoJogo.fillStyle = "#11101c";
-      contextoJogo.fillRect(x + 34, y + 34, tamanhoCidade - 68, tamanhoCidade - 68);
-      contextoJogo.strokeStyle = cor;
-      contextoJogo.globalAlpha = 0.78;
-      contextoJogo.lineWidth = 2;
-      contextoJogo.strokeRect(x + 34, y + 34, tamanhoCidade - 68, tamanhoCidade - 68);
-      contextoJogo.globalAlpha = 0.14;
-      contextoJogo.fillStyle = cor;
-      contextoJogo.fillRect(x + 46, y + 46, tamanhoCidade - 92, tamanhoCidade - 92);
-      contextoJogo.globalAlpha = 1;
+  const projetar = (x, distancia, alturaPonto = 0) =>
+    projetarPonto(x, distancia, alturaPonto, largura, altura, yaw, pitch);
+  desenharPoligono([
+    projetar(-80, jogador.distancia + 1),
+    projetar(80, jogador.distancia + 1),
+    projetar(80, jogador.distancia + 140),
+    projetar(-80, jogador.distancia + 140)
+  ], "#555550");
+  desenharPoligono([
+    projetar(-5.5, jogador.distancia + 1),
+    projetar(5.5, jogador.distancia + 1),
+    projetar(5.5, jogador.distancia + 140),
+    projetar(-5.5, jogador.distancia + 140)
+  ], "#343737");
+
+  for (const lado of [-1, 1]) {
+    desenharPoligono([
+      projetar(lado * 5.3, jogador.distancia + 1),
+      projetar(lado * 7.6, jogador.distancia + 1),
+      projetar(lado * 7.6, jogador.distancia + 140),
+      projetar(lado * 5.3, jogador.distancia + 140)
+    ], "#777365");
+    const meioFio = lado * 5.3;
+    desenharPoligono([
+      projetar(meioFio, jogador.distancia + 1, 0.12),
+      projetar(meioFio + lado * 0.12, jogador.distancia + 1, 0.12),
+      projetar(meioFio + lado * 0.12, jogador.distancia + 140, 0.12),
+      projetar(meioFio, jogador.distancia + 140, 0.12)
+    ], "#c0ad87");
+  }
+
+  for (let distancia = 7; distancia < 120; distancia += 14) {
+    const inicio = jogador.distancia + distancia;
+    const fim = inicio + 5;
+    desenharPoligono([
+      projetar(-0.09, inicio, 0.025),
+      projetar(0.09, inicio, 0.025),
+      projetar(0.09, fim, 0.025),
+      projetar(-0.09, fim, 0.025)
+    ], "#c2b992");
+  }
+
+  const primeiraRua = Math.floor(jogador.distancia / 20) - 1;
+  const predios = [];
+  for (let rua = primeiraRua; rua < primeiraRua + 9; rua += 1) {
+    const profundidade = rua * 20 + 20;
+    if (profundidade < jogador.distancia + 4) continue;
+    for (const lado of [-1, 1]) {
+      predios.push({
+        lado,
+        profundidade,
+        xInterior: lado * 7.7,
+        xExterior: lado * (11.5 + (rua % 3) * 0.6),
+        altura: 7 + (Math.abs(rua * 17 + lado * 13) % 8),
+        cor: ["#454847", "#555147", "#464b4b", "#595348"][Math.abs(rua + lado * 3) % 4]
+      });
     }
   }
+  predios.sort((a, b) => b.profundidade - a.profundidade);
+  predios.forEach((predio, indice) => {
+    const { lado, profundidade, xInterior, xExterior, altura: alturaPredio, cor } = predio;
+    const fundo = profundidade + 18;
+    const sombra = "#242a2c";
+    desenharPoligono([
+      projetar(xInterior, profundidade),
+      projetar(xInterior, fundo),
+      projetar(xInterior, fundo, alturaPredio),
+      projetar(xInterior, profundidade, alturaPredio)
+    ], "#343a3b", sombra);
+    desenharPoligono([
+      projetar(xInterior, profundidade),
+      projetar(xExterior, profundidade),
+      projetar(xExterior, profundidade, alturaPredio),
+      projetar(xInterior, profundidade, alturaPredio)
+    ], cor, sombra);
 
-  contextoJogo.strokeStyle = "#30203e";
-  contextoJogo.lineWidth = 1;
-  contextoJogo.setLineDash([12, 14]);
-  for (let coluna = inicioColuna; coluna <= fimColuna; coluna += 1) {
-    const centroX = coluna * tamanhoCidade + tamanhoCidade / 2 - cameraX;
-    contextoJogo.beginPath();
-    contextoJogo.moveTo(centroX, 0);
-    contextoJogo.lineTo(centroX, altura);
-    contextoJogo.stroke();
-  }
-  for (let linha = inicioLinha; linha <= fimLinha; linha += 1) {
-    const centroY = linha * tamanhoCidade + tamanhoCidade / 2 - cameraY;
-    contextoJogo.beginPath();
-    contextoJogo.moveTo(0, centroY);
-    contextoJogo.lineTo(largura, centroY);
-    contextoJogo.stroke();
-  }
-  contextoJogo.setLineDash([]);
+    for (let andar = 1; andar < Math.floor(alturaPredio / 2); andar += 1) {
+      for (let janela = 0; janela < 4; janela += 1) {
+        const xJanela = xInterior + lado * (0.8 + janela * 0.85);
+        const corJanela = (janela + andar + indice) % 5 === 0 ? "#d19e59" : "#27363b";
+        desenharPoligono([
+          projetar(xJanela, profundidade - 0.02, andar * 2 - 0.35),
+          projetar(xJanela + lado * 0.46, profundidade - 0.02, andar * 2 - 0.35),
+          projetar(xJanela + lado * 0.46, profundidade - 0.02, andar * 2 + 0.55),
+          projetar(xJanela, profundidade - 0.02, andar * 2 + 0.55)
+        ], corJanela);
+      }
+    }
+  });
 }
 
-function renderizar(tempo = performance.now()) {
-  if (!canvasJogo || !canvasJogo.clientWidth) return;
-  const largura = canvasJogo.clientWidth;
-  const altura = canvasJogo.clientHeight;
-  renderizarCidade(largura, altura);
-  const centroX = largura / 2;
-  const centroY = altura / 2;
-
-  pacotes.forEach((pacote) => {
-    if (pacote.coletado) return;
-    const x = centroX + pacote.x - jogador.x;
-    const y = centroY + pacote.y - jogador.y;
-    contextoJogo.save();
-    contextoJogo.shadowColor = "#33f6ff";
-    contextoJogo.shadowBlur = 18;
-    contextoJogo.fillStyle = "#33f6ff";
-    contextoJogo.fillRect(x - 7, y - 7, 14, 14);
-    contextoJogo.restore();
-  });
-
+function desenharZumbi(zumbi, largura, altura, yaw, pitch) {
+  const pe = projetarPonto(zumbi.x, zumbi.distancia, 0, largura, altura, yaw, pitch);
+  const tronco = projetarPonto(zumbi.x, zumbi.distancia, 1.05, largura, altura, yaw, pitch);
+  const cabeca = projetarPonto(zumbi.x, zumbi.distancia, 1.7, largura, altura, yaw, pitch);
+  if (!pe || !tronco || !cabeca || pe.x < -160 || pe.x > largura + 160) return;
+  const larguraCorpo = tronco.escala * 0.62;
+  const escalaCabeça = cabeca.escala;
   contextoJogo.save();
-  contextoJogo.translate(centroX, centroY);
-  let salto = 0;
-  let escala = 1;
-  if (comemorando) {
-    const progresso = Math.max(0, (tempo - inicioComemoracao) / 1000);
-    const intensidade = Math.max(0, 1 - progresso / 5);
-    salto = Math.abs(Math.sin(progresso * 9)) * 24 * intensidade;
-    escala += Math.sin(progresso * 12) * 0.12 * intensidade;
-    contextoJogo.save();
-    contextoJogo.globalAlpha = 0.45 + Math.sin(progresso * 10) * 0.2;
-    contextoJogo.strokeStyle = "#33f6ff";
-    contextoJogo.lineWidth = 3;
-    contextoJogo.shadowColor = "#33f6ff";
-    contextoJogo.shadowBlur = 20;
+  contextoJogo.fillStyle = "rgba(0, 0, 0, 0.35)";
+  contextoJogo.beginPath();
+  contextoJogo.ellipse(pe.x, pe.y, larguraCorpo * 0.7, Math.max(2, pe.escala * 0.12), 0, 0, Math.PI * 2);
+  contextoJogo.fill();
+  desenharPoligono([
+    { x: tronco.x - larguraCorpo * 0.55, y: tronco.y + tronco.escala * 0.45 },
+    { x: tronco.x + larguraCorpo * 0.55, y: tronco.y + tronco.escala * 0.45 },
+    { x: pe.x + larguraCorpo * 0.35, y: pe.y },
+    { x: pe.x - larguraCorpo * 0.35, y: pe.y }
+  ], "#4d5941", "#222923");
+  contextoJogo.strokeStyle = "#66724d";
+  contextoJogo.lineWidth = Math.max(1, tronco.escala * 0.13);
+  contextoJogo.beginPath();
+  contextoJogo.moveTo(tronco.x - larguraCorpo * 0.35, tronco.y);
+  contextoJogo.lineTo(tronco.x - larguraCorpo, tronco.y + tronco.escala * 0.48);
+  contextoJogo.moveTo(tronco.x + larguraCorpo * 0.35, tronco.y);
+  contextoJogo.lineTo(tronco.x + larguraCorpo, tronco.y + tronco.escala * 0.35);
+  contextoJogo.stroke();
+  contextoJogo.fillStyle = "#89956a";
+  contextoJogo.beginPath();
+  contextoJogo.ellipse(cabeca.x, cabeca.y, escalaCabeça * 0.22, escalaCabeça * 0.27, 0, 0, Math.PI * 2);
+  contextoJogo.fill();
+  contextoJogo.fillStyle = "#d54c3e";
+  contextoJogo.beginPath();
+  contextoJogo.arc(cabeca.x - escalaCabeça * 0.09, cabeca.y, Math.max(1, escalaCabeça * 0.035), 0, Math.PI * 2);
+  contextoJogo.arc(cabeca.x + escalaCabeça * 0.09, cabeca.y, Math.max(1, escalaCabeça * 0.035), 0, Math.PI * 2);
+  contextoJogo.fill();
+  contextoJogo.restore();
+}
+
+function desenharArma(largura, altura) {
+  const x = largura * 0.43;
+  const y = altura * 0.81;
+  contextoJogo.save();
+  contextoJogo.fillStyle = "#554239";
+  contextoJogo.beginPath();
+  contextoJogo.moveTo(x + largura * 0.04, altura);
+  contextoJogo.lineTo(x + largura * 0.1, y + altura * 0.06);
+  contextoJogo.lineTo(x + largura * 0.2, y + altura * 0.11);
+  contextoJogo.lineTo(x + largura * 0.18, altura);
+  contextoJogo.fill();
+  contextoJogo.fillStyle = "#2b3031";
+  contextoJogo.strokeStyle = "#92938a";
+  contextoJogo.lineWidth = 2;
+  contextoJogo.beginPath();
+  contextoJogo.moveTo(x, y + altura * 0.07);
+  contextoJogo.lineTo(x + largura * 0.19, y + altura * 0.07);
+  contextoJogo.lineTo(x + largura * 0.23, y + altura * 0.12);
+  contextoJogo.lineTo(x + largura * 0.06, y + altura * 0.15);
+  contextoJogo.closePath();
+  contextoJogo.fill();
+  contextoJogo.stroke();
+  contextoJogo.fillStyle = "#171b1c";
+  contextoJogo.fillRect(x + largura * 0.15, y + altura * 0.09, largura * 0.13, altura * 0.025);
+  contextoJogo.fillStyle = "#8b684e";
+  contextoJogo.beginPath();
+  contextoJogo.ellipse(x + largura * 0.08, y + altura * 0.16, largura * 0.045, altura * 0.035, -0.3, 0, Math.PI * 2);
+  contextoJogo.fill();
+  if (tempoDisparo > 0.14) {
+    contextoJogo.fillStyle = "#ffd166";
+    contextoJogo.shadowColor = "#ff9f1c";
+    contextoJogo.shadowBlur = 24;
     contextoJogo.beginPath();
-    contextoJogo.arc(0, 0, 42 + Math.sin(progresso * 8) * 5, 0, Math.PI * 2);
-    contextoJogo.stroke();
-    contextoJogo.restore();
-  }
-  contextoJogo.translate(0, -salto);
-  contextoJogo.scale(escala, escala);
-  if (nomeSelecionado === "SELFIE" && imagemDoJogo?.complete && imagemDoJogo.naturalWidth) {
-    contextoJogo.save();
-    contextoJogo.beginPath();
-    contextoJogo.roundRect(-31, -43, 62, 86, 10);
-    contextoJogo.clip();
-    contextoJogo.drawImage(imagemDoJogo, -31, -43, 62, 86);
-    contextoJogo.restore();
-    contextoJogo.strokeStyle = "#33f6ff";
-    contextoJogo.lineWidth = 3;
-    contextoJogo.shadowColor = "#33f6ff";
-    contextoJogo.shadowBlur = 16;
-    contextoJogo.beginPath();
-    contextoJogo.roundRect(-32, -44, 64, 88, 11);
-    contextoJogo.stroke();
-  } else if (imagemDoJogo?.complete && imagemDoJogo.naturalWidth) {
-    contextoJogo.drawImage(imagemDoJogo, -34, -47, 68, 94);
-  } else {
-    contextoJogo.fillStyle = "#ff2d95";
-    contextoJogo.beginPath();
-    contextoJogo.arc(0, 0, 25, 0, Math.PI * 2);
+    contextoJogo.arc(x + largura * 0.29, y + altura * 0.1, 8 + Math.random() * 7, 0, Math.PI * 2);
     contextoJogo.fill();
   }
   contextoJogo.restore();
 }
+
+function renderizar() {
+  if (!canvasJogo || !canvasJogo.clientWidth) return;
+  const largura = canvasJogo.clientWidth;
+  const altura = canvasJogo.clientHeight;
+  const { yaw, pitch } = obterAngulosMira(largura, altura);
+  const projetar = (x, distancia, alturaPonto) =>
+    projetarPonto(x, distancia, alturaPonto, largura, altura, yaw, pitch);
+
+  desenharCidade(largura, altura, yaw, pitch);
+  [...zumbis]
+    .sort((a, b) => b.distancia - a.distancia)
+    .forEach((zumbi) => desenharZumbi(zumbi, largura, altura, yaw, pitch));
+
+  balas.forEach((bala) => {
+    const ponto = projetar(bala.x, bala.distancia, bala.altura);
+    if (!ponto) return;
+    contextoJogo.fillStyle = "#ffd166";
+    contextoJogo.shadowColor = "#ff9f1c";
+    contextoJogo.shadowBlur = 10;
+    contextoJogo.beginPath();
+    contextoJogo.arc(ponto.x, ponto.y, Math.max(2, ponto.escala * 0.06), 0, Math.PI * 2);
+    contextoJogo.fill();
+    contextoJogo.shadowBlur = 0;
+  });
+
+  const vinheta = contextoJogo.createRadialGradient(
+    largura / 2, altura / 2, altura * 0.18,
+    largura / 2, altura / 2, altura * 0.82
+  );
+  vinheta.addColorStop(0, "rgba(0, 0, 0, 0)");
+  vinheta.addColorStop(1, "rgba(9, 12, 14, 0.55)");
+  contextoJogo.fillStyle = vinheta;
+  contextoJogo.fillRect(0, 0, largura, altura);
+
+  contextoJogo.strokeStyle = "rgba(255, 242, 217, 0.88)";
+  contextoJogo.lineWidth = 2;
+  contextoJogo.beginPath();
+  contextoJogo.moveTo(mira.x - 8, mira.y);
+  contextoJogo.lineTo(mira.x - 3, mira.y);
+  contextoJogo.moveTo(mira.x + 3, mira.y);
+  contextoJogo.lineTo(mira.x + 8, mira.y);
+  contextoJogo.moveTo(mira.x, mira.y - 8);
+  contextoJogo.lineTo(mira.x, mira.y - 3);
+  contextoJogo.moveTo(mira.x, mira.y + 3);
+  contextoJogo.lineTo(mira.x, mira.y + 8);
+  contextoJogo.stroke();
+  desenharArma(largura, altura);
+}
+
+function atualizarMira(evento) {
+  const limites = canvasJogo.getBoundingClientRect();
+  mira = {
+    x: Math.max(0, Math.min(limites.width, evento.clientX - limites.left)),
+    y: Math.max(0, Math.min(limites.height, evento.clientY - limites.top))
+  };
+}
+
+canvasJogo.addEventListener("pointermove", atualizarMira);
+canvasJogo.addEventListener("pointerdown", (evento) => {
+  if (evento.button !== 0 && evento.pointerType !== "touch") return;
+  evento.preventDefault();
+  atualizarMira(evento);
+  atualizarPonteiroDirecional("fire", evento.pointerId, true);
+  canvasJogo.setPointerCapture(evento.pointerId);
+  disparar();
+});
+["pointerup", "pointercancel", "lostpointercapture"].forEach((tipoEvento) => {
+  canvasJogo.addEventListener(tipoEvento, (evento) => {
+    atualizarPonteiroDirecional("fire", evento.pointerId, false);
+  });
+});
+botaoDisparar.addEventListener("pointerdown", (evento) => {
+  if (!jogoAtivo) return;
+  evento.preventDefault();
+  atualizarPonteiroDirecional("fire", evento.pointerId, true);
+  botaoDisparar.setPointerCapture(evento.pointerId);
+  disparar();
+});
+["pointerup", "pointercancel", "lostpointercapture"].forEach((tipoEvento) => {
+  botaoDisparar.addEventListener(tipoEvento, (evento) => {
+    atualizarPonteiroDirecional("fire", evento.pointerId, false);
+  });
+});
+botaoRecarregar.addEventListener("click", recarregarArma);
 
 botaoIniciar.addEventListener("click", iniciarJogo);
 botaoInstalarApp.addEventListener("click", async () => {
@@ -710,6 +857,7 @@ opcoesNivel.forEach((opcao, indice) => {
   });
 });
 botaoSair.addEventListener("click", sairDoJogo);
+botaoSairFinal.addEventListener("click", sairDoJogo);
 botaoSom.addEventListener("click", () => {
   audioAtivo = !audioAtivo;
   atualizarBotaoSom();
@@ -722,24 +870,24 @@ botaoSom.addEventListener("click", () => {
 });
 botaoReiniciar.addEventListener("click", () => {
   cancelAnimationFrame(animacaoJogo);
-  clearTimeout(avisoTimeout);
-  if (campanhaConcluida) {
-    nivelAtual = 1;
-    opcoesNivel.forEach((opcao) => {
-      opcao.checked = Number(opcao.value) === nivelAtual;
-    });
-  }
-  campanhaConcluida = false;
-  iniciarMissao();
+  iniciarPartida();
   jogoAtivo = true;
-  botaoReiniciar.hidden = true;
-  contagemProximoNivel.hidden = true;
+  canvasJogo.focus();
   iniciarAmbienteSonoro();
   animacaoJogo = requestAnimationFrame(atualizarJogo);
 });
 window.addEventListener("resize", ajustarCanvas);
 window.addEventListener("keydown", (evento) => {
   const tecla = evento.key.toLowerCase();
+  if (evento.target instanceof HTMLElement
+    && evento.target.closest("button, input, textarea, select, [contenteditable='true']")) return;
+  if (tecla === " " || tecla === "r") {
+    evento.preventDefault();
+    if (tecla === "r") recarregarArma();
+    else if (!evento.repeat) disparar();
+    if (tecla === " ") teclasPressionadas.add(tecla);
+    return;
+  }
   if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(tecla)) {
     evento.preventDefault();
     teclasPressionadas.add(tecla);

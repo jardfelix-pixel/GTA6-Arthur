@@ -1,9 +1,15 @@
-const CACHE_NAME = "gta-arthur-shell-v4";
+const CACHE_NAME = "vice-coast-shell-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
-  "./script.js",
+  "./src/main.js",
+  "./src/scene.js",
+  "./src/city.js",
+  "./src/player.js",
+  "./src/vehicle.js",
+  "./src/ui.js",
+  "./src/utils.js",
   "./manifest.webmanifest",
   "./img/app-icon.svg",
   "./img/app-icon-192.png",
@@ -12,8 +18,6 @@ const APP_SHELL = [
   "./img/cj.png",
   "./img/jason.png",
   "./img/lucia.png",
-  "./img/background.jpg",
-  "./img/background1.jpg",
   "./img/background2.jpg"
 ];
 
@@ -33,7 +37,10 @@ self.addEventListener("activate", (event) => {
     Promise.all([
       caches.keys().then((cacheNames) => Promise.all(
         cacheNames
-          .filter((cacheName) => cacheName.startsWith("gta-arthur-shell-") && cacheName !== CACHE_NAME)
+          .filter((cacheName) => (
+            (cacheName.startsWith("gta-arthur-shell-") || cacheName.startsWith("vice-coast-shell-"))
+            && cacheName !== CACHE_NAME
+          ))
           .map((cacheName) => caches.delete(cacheName))
       )),
       self.clients.claim()

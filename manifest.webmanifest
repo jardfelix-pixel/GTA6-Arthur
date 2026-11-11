@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "GTA Arthur - Jogo",
-  "short_name": "GTA Arthur",
-  "description": "Jogo de aventura com personagens, níveis e controles para computador e celular.",
+  "name": "Vice Coast - Mundo aberto 3D",
+  "short_name": "Vice Coast",
+  "description": "Explore uma cidade costeira 3D e dirija pelas ruas ao entardecer.",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",
